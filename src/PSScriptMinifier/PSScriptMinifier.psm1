@@ -4,7 +4,9 @@ using namespace System.Management.Automation.Language
 class MinifyVisitor : AstVisitor2 {
   [System.Text.StringBuilder]$sb
   
-  MinifyVisitor() { $this.sb = [System.Text.StringBuilder]::new() }
+  MinifyVisitor() {
+    $this.sb = [System.Text.StringBuilder]::new() 
+  }
   
   static [string] GetMinified([ScriptBlockAst]$ast) {
     $visitor = [MinifyVisitor]::new()
@@ -12,7 +14,9 @@ class MinifyVisitor : AstVisitor2 {
     return $visitor.sb.ToString().TrimEnd()
   }
 
-  hidden [string] GetPrevChar() { return $this.sb.ToString()?[-1] }
+  hidden [string] GetPrevChar() {
+    return $this.sb.ToString()?[-1] 
+  }
 
   hidden [void] Append([string]$text) {
     if ($this.sb.Length -gt 0) {
@@ -26,18 +30,24 @@ class MinifyVisitor : AstVisitor2 {
 
   [AstVisitAction] VisitCommand([CommandAst]$node) {
     switch ($node.InvocationOperator) {
-      'Dot' { $this.Append('.') }
-      'Ampersand' { $this.Append('&') }
+      'Dot' {
+        $this.Append('.') 
+      }
+      'Ampersand' {
+        $this.Append('&') 
+      }
     }
     return [AstVisitAction]::Continue
   }
 
   [AstVisitAction] VisitStatementBlock([StatementBlockAst]$node) {
     $stmts = $node.Statements
-    $n = $stmts.Count
-    for ($i = 0; $i -lt $n; $i++) {
-      $stmts[$i]?.Visit($this)
-      if ($i -lt $n - 1 -and $this.GetPrevChar() -ne ';') { $this.Append(';') }
+    for ($i = 0; $i -lt $stmts.Count; $i++) {
+      # $stmt = $stmts[$i]
+      $stmts[$i].Visit($this)
+      if ($i -lt $stmts.Count - 1 -and $this.GetPrevChar() -ne ';') {
+        $this.Append(';')
+      }
     }
     return [AstVisitAction]::SkipChildren
   }
@@ -58,7 +68,9 @@ class MinifyVisitor : AstVisitor2 {
       $this.Append('(')
       for ($i = 0; $i -lt $n; $i++) {
         $params[$i].Visit($this)
-        if ($i -lt $n - 1) { $this.Append(',') }
+        if ($i -lt $n - 1) {
+          $this.Append(',') 
+        }
       }
       $this.Append(')')
     }
@@ -71,6 +83,9 @@ class MinifyVisitor : AstVisitor2 {
   [AstVisitAction] VisitScriptBlockExpression([ScriptBlockExpressionAst]$node) {
     $this.Append('{')
     ($node.ScriptBlock)?.Visit($this)
+    if ($this.GetPrevChar() -eq ';') {
+      $this.sb.Remove($this.sb.Length - 1, 1)
+    }
     $this.Append('}')
     return [AstVisitAction]::SkipChildren
   }
@@ -88,7 +103,6 @@ class MinifyVisitor : AstVisitor2 {
   }
 
   [AstVisitAction] VisitNamedBlock([NamedBlockAst]$node) {
-    
     if (-not $node.Unnamed) {
       $this.Append($node.BlockKind.ToString().ToLower())
       $this.Append('{')
@@ -99,10 +113,14 @@ class MinifyVisitor : AstVisitor2 {
       for ($i = 0; $i -lt $n; $i++) {
         $stmt = $stmts[$i]
         ($stmt)?.Visit($this)
-        if ($i -lt $n - 1 -and $this.GetPrevChar() -ne ';') { $this.Append(';') }
+        if ($i -lt $n - 1 -and $this.GetPrevChar() -ne ';') {
+          $this.Append(';') 
+        }
       }
     }
-    if (-not $node.Unnamed) { $this.Append('}') }
+    if (-not $node.Unnamed) {
+      $this.Append('}') 
+    }
     
     $node.Traps | ForEach-Object { ($_)?.Visit($this) }
     return [AstVisitAction]::SkipChildren
@@ -120,7 +138,9 @@ class MinifyVisitor : AstVisitor2 {
     for ($i = 0; $i -lt $n; $i++) {
       $elt = $elts[$i]
       $elt.Visit($this)
-      if ($i -lt $n - 1) { $this.Append('|') }
+      if ($i -lt $n - 1) {
+        $this.Append('|') 
+      }
     }
     return [AstVisitAction]::SkipChildren
   }
@@ -160,7 +180,9 @@ class MinifyVisitor : AstVisitor2 {
       ($node.ElseClause)?.Visit($this)
       $this.Append('}')
     }
-    if ($this.GetPrevChar() -ne ';') { $this.Append(';') }
+    if ($this.GetPrevChar() -ne ';') {
+      $this.Append(';') 
+    }
     return [AstVisitAction]::SkipChildren
   }
 
@@ -171,20 +193,28 @@ class MinifyVisitor : AstVisitor2 {
     $opRelOffset = $opStart - $node.Extent.StartOffset
     $this.Append($node.Extent.Text.Substring($opRelOffset, $opLen).Trim())
     ($node.Right)?.Visit($this)
-    if ($this.GetPrevChar() -ne ';') { $this.Append(';') }  
+    if ($this.GetPrevChar() -ne ';') {
+      $this.Append(';') 
+    }  
     return [AstVisitAction]::SkipChildren
   }
 
   [AstVisitAction] VisitForStatement([ForStatementAst]$node) {
-    if ($node.Label) { $this.sb.Append(':{0} ' -f $node.Label) }
+    if ($node.Label) {
+      $this.sb.Append(':{0} ' -f $node.Label) 
+    }
     $this.Append('for(')
     if ($node.Initializer) { 
       ($node.Initializer)?.Visit($this)
-      if ($this.GetPrevChar() -ne ';') { $this.Append(';') }
+      if ($this.GetPrevChar() -ne ';') {
+        $this.Append(';') 
+      }
     }
     if ($node.Condition) {
       ($node.Condition)?.Visit($this) 
-      if ($this.GetPrevChar() -ne ';') { $this.Append(';') }
+      if ($this.GetPrevChar() -ne ';') {
+        $this.Append(';') 
+      }
     }
     ($node.Iterator)?.Visit($this)
     $this.Append(')')
@@ -195,7 +225,9 @@ class MinifyVisitor : AstVisitor2 {
   }
 
   [AstVisitAction] VisitForEachStatement([ForEachStatementAst]$node) {
-    if ($node.Label) { $this.sb.Append(':{0} ' -f $node.Label) }
+    if ($node.Label) {
+      $this.sb.Append(':{0} ' -f $node.Label) 
+    }
     $this.Append('foreach(')
     ($node.Variable)?.Visit($this)
     $this.Append('in')
@@ -211,7 +243,9 @@ class MinifyVisitor : AstVisitor2 {
   }
 
   [AstVisitAction] VisitDoUntilStatement([DoUntilStatementAst]$node) {
-    if ($node.Label) { $this.sb.Append(':{0} ' -f $node.Label) }
+    if ($node.Label) {
+      $this.sb.Append(':{0} ' -f $node.Label) 
+    }
     $this.Append('do{')
     ($node.Body)?.Visit($this)
     $this.Append('}until(')
@@ -221,7 +255,9 @@ class MinifyVisitor : AstVisitor2 {
   }
 
   [AstVisitAction] VisitDoWhileStatement([DoWhileStatementAst]$node) {
-    if ($node.Label) { $this.sb.Append(':{0} ' -f $node.Label) }
+    if ($node.Label) {
+      $this.sb.Append(':{0} ' -f $node.Label) 
+    }
     $this.Append('do{')
     ($node.Body)?.Visit($this)
     $this.Append('}while(')
@@ -237,20 +273,33 @@ class MinifyVisitor : AstVisitor2 {
     return [AstVisitAction]::SkipChildren
   }
 
-  [AstVisitAction] VisitTryStatement([TryStatementAst]$node) {
-    $this.Append('try ')
-    ($node.Body)?.Visit($this)
-    $node.Catches | ForEach-Object { $_.Visit($this) }
-    ($node.Finally)?.Visit($this)
-    if ($this.GetPrevChar() -ne ';') { $this.Append(';') }
+  [AstVisitAction] VisitTryStatement([TryStatementAst] $node) {
+    if ($node.Body) {
+      $node.Body.Visit($this)
+    }
+    foreach ($catch in $node.Catches) {
+      $catch.Visit($this)
+    }
+    if ($node.Finally) {
+      $node.Finally.Visit($this)
+    }
+    if ($this.GetPrevChar() -ne ';') {
+      $this.Append(';') 
+    }
     return [AstVisitAction]::SkipChildren
   }
 
-  [AstVisitAction] VisitCatchClause([CatchClauseAst]$node) {
+  [AstVisitAction] VisitCatchClause([CatchClauseAst] $node) {
     $this.Append('catch ')
-    ($node.ErrorType)?.Visit($this)
-    if ($node.Variable) { $this.Append(" `$$($node.Variable)") }
-    $node.Body.Visit($this)
+    if ($node.ErrorType) {
+      $node.ErrorType.Visit($this)
+    }
+    if ($node.Variable) {
+      $this.Append(" `$$($node.Variable)")
+    }
+    if ($node.Body) {
+      $node.Body.Visit($this)
+    }
     return [AstVisitAction]::SkipChildren
   }
 
@@ -258,7 +307,9 @@ class MinifyVisitor : AstVisitor2 {
     $this.Append('throw ')
     ($node.Pipeline)?.Visit($this)
     ($node.Exception)?.Visit($this)
-    if ($this.GetPrevChar() -ne ';') { $this.Append(';') }
+    if ($this.GetPrevChar() -ne ';') {
+      $this.Append(';') 
+    }
     return [AstVisitAction]::SkipChildren
   }
 
@@ -283,7 +334,9 @@ class MinifyVisitor : AstVisitor2 {
 
   [AstVisitAction] VisitUsingStatement([UsingStatementAst]$node) {
     $this.Append($node.Extent.Text)
-    if ($this.GetPrevChar() -ne ';') { $this.Append(';') }
+    if ($this.GetPrevChar() -ne ';') {
+      $this.Append(';') 
+    }
     return [AstVisitAction]::SkipChildren
   }
 
@@ -294,7 +347,9 @@ class MinifyVisitor : AstVisitor2 {
     $n = $params.Count
     for ($i = 0; $i -lt $n; $i++) {
       $params[$i].Visit($this)
-      if ($i -lt $n - 1) { $this.Append(',') }
+      if ($i -lt $n - 1) {
+        $this.Append(',') 
+      }
     }
     $this.Append(');')
     return [AstVisitAction]::SkipChildren
@@ -330,9 +385,74 @@ class MinifyVisitor : AstVisitor2 {
   [AstVisitAction] VisitParenExpression([ParenExpressionAst]$node) {
     $this.Append('(')
     ($node.Pipeline)?.Visit($this)
+    if ($this.GetPrevChar() -eq ';') {
+      $this.sb.Remove($this.sb.Length - 1, 1)
+    }
     $this.Append(')')
     return [AstVisitAction]::SkipChildren
   }
+
+  [AstVisitAction] VisitMemberExpression([MemberExpressionAst] $node) {
+    ($node.Expression)?.Visit($this)
+    $this.Append($(if ($node.NullConditional) {
+          '?.' 
+        } else {
+          '.' 
+        }))
+    $this.Append($node.Member)
+    return [AstVisitAction]::SkipChildren
+  }
+
+  [AstVisitAction] VisitInvokeMemberExpression([InvokeMemberExpressionAst] $node) {
+    ($node.Expression)?.Visit($this)
+    $this.Append($(if ($node.NullConditional) {
+          '?.' 
+        } else {
+          '.' 
+        }))
+    $this.Append($node.Member)
+    if ($node.GenericTypeArguments.Count -gt 0) {
+      $this.Append('[')
+      for ($i = 0; $i -lt $node.GenericTypeArguments.Count; $i++) {
+        $node.GenericTypeArguments[$i].Visit($this)
+        if ($i -lt $node.GenericTypeArguments.Count - 1) {
+          $this.Append(',') 
+        }
+      }
+      $this.Append(']')
+    }
+    $this.Append('(')
+    for ($i = 0; $i -lt $node.Arguments.Count; $i++) {
+      $arg = $node.Arguments[$i]
+      $arg.Visit($this)
+      if ($i -lt $node.Arguments.Count - 1) {
+        $this.Append(',') 
+      }
+    }
+    $this.Append(')')
+    return [AstVisitAction]::SkipChildren
+  }
+
+  [AstVisitAction] VisitWhileStatement([WhileStatementAst]$node) {
+    if ($node.Label) {
+      $this.Append(':{0} ' -f $node.Label) 
+    }
+    $this.Append('while(')
+    $node.Condition.Visit($this)
+    if ($this.GetPrevChar() -eq ';') {
+      $this.sb.Remove($this.sb.Length - 1, 1)
+    }
+    $this.Append('){')
+    foreach ($s in $node.Body.Statements) {
+      $s.Visit($this)
+      if ($this.GetPrevChar() -ne ';') {
+        $this.Append(';') 
+      }
+    }
+    $this.Append('}')
+    return [AstVisitAction]::SkipChildren
+  }
+
 
   [AstVisitAction] VisitHashtable([HashtableAst]$node) {
     $this.Append('@{')
@@ -343,7 +463,9 @@ class MinifyVisitor : AstVisitor2 {
       $key.Visit($this)
       $this.Append('=')
       $value.Visit($this)
-      if ($i -lt $n - 1 -and $this.GetPrevChar() -ne ';') { $this.Append(';') }
+      if ($i -lt $n - 1 -and $this.GetPrevChar() -ne ';') {
+        $this.Append(';') 
+      }
     }
     $this.Append('}')    
     return [AstVisitAction]::SkipChildren
@@ -360,7 +482,9 @@ class MinifyVisitor : AstVisitor2 {
     $n = $node.Elements.Count
     for ($i = 0; $i -lt $n; $i++) {
       $node.Elements[$i].Visit($this)
-      if ($i -lt $n - 1) { $this.Append(',') }
+      if ($i -lt $n - 1) {
+        $this.Append(',') 
+      }
     }
     return [AstVisitAction]::SkipChildren
   }
@@ -411,7 +535,9 @@ class MinifyVisitor : AstVisitor2 {
 
   [AstVisitAction] VisitIndexExpression([IndexExpressionAst]$node) {
     $this.sb.Append($node.Target.ToString().Trim())
-    if ($node.NullConditional) { $this.sb.Append('?') }
+    if ($node.NullConditional) {
+      $this.sb.Append('?') 
+    }
     $this.sb.Append('[' + $node.Index + ']')
     return [AstVisitAction]::SkipChildren
   }
@@ -445,7 +571,9 @@ class MinifyVisitor : AstVisitor2 {
     for ($i = 0; $i -lt $n; $i++) {
       $param = $node.Parameters[$i]
       $param.Visit($this)
-      if ($i -lt $n - 1) { $this.Append(',') }
+      if ($i -lt $n - 1) {
+        $this.Append(',') 
+      }
     }
     $this.Append('){')
     ($node.Body)?.Visit($this)
@@ -544,23 +672,27 @@ function Remove-ScriptTrivia {
   }
   $cleanSb.Append($rest) | Out-Null
   $lines = $cleanSb.ToString().Split([Environment]::NewLine, [StringSplitOptions]::RemoveEmptyEntries) | 
-  Where-Object { $_ -NotMatch '^\s+$' }
+  Where-Object { $_ -notmatch '^\s+$' }
   $lines -join [Environment]::NewLine
 }
 
 function Invoke-ScriptMinifier {
   [Alias('Minify')]
   param (
-    [Parameter(ParameterSetName = "FromFile", Position = 0)]
+    [Parameter(ParameterSetName = 'FromFile', Position = 0)]
     [Alias('f')]
     [string]$File,
-    [Parameter(ParameterSetName = "FromInput")]
+    [Parameter(ParameterSetName = 'FromInput')]
     [Alias('c')]
     [string]$Command    
   )
   $text = switch ($PSCmdlet.ParameterSetName) {
-    "FromFile" { Get-Content -Path $File -Raw }
-    "FromInput" { $Command }
+    'FromFile' {
+      Get-Content -Path $File -Raw 
+    }
+    'FromInput' {
+      $Command 
+    }
   }
   $clean = Remove-ScriptTrivia $text
   $ast = [Parser]::ParseInput($clean, [ref]@(), [ref]@())
