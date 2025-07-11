@@ -43,7 +43,6 @@ class MinifyVisitor : AstVisitor2 {
   [AstVisitAction] VisitStatementBlock([StatementBlockAst]$node) {
     $stmts = $node.Statements
     for ($i = 0; $i -lt $stmts.Count; $i++) {
-      # $stmt = $stmts[$i]
       $stmts[$i].Visit($this)
       if ($i -lt $stmts.Count - 1 -and $this.GetPrevChar() -ne ';') {
         $this.Append(';')
@@ -91,8 +90,8 @@ class MinifyVisitor : AstVisitor2 {
   }
 
   [AstVisitAction] VisitScriptBlock([ScriptBlockAst]$node) {
-    $node.UsingStatements | ForEach-Object { $_.Visit($this) }
-    $node.Attributes | ForEach-Object { $_.Visit($this) }
+    $node.UsingStatements | % { $_.Visit($this) }
+    $node.Attributes | % { $_.Visit($this) }
     ($node.ParamBlock)?.Visit($this)
     ($node.DynamicParamBlock)?.Visit($this)
     ($node.BeginBlock)?.Visit($this)
@@ -121,8 +120,7 @@ class MinifyVisitor : AstVisitor2 {
     if (-not $node.Unnamed) {
       $this.Append('}') 
     }
-    
-    $node.Traps | ForEach-Object { ($_)?.Visit($this) }
+    $node.Traps | % { ($_)?.Visit($this) }
     return [AstVisitAction]::SkipChildren
   }
 
@@ -317,7 +315,7 @@ class MinifyVisitor : AstVisitor2 {
     $this.Append('switch(')
     $node.Condition.Visit($this)
     $this.Append('){')
-    $node.Clauses | ForEach-Object {
+    $node.Clauses | % {
       $_.Item1.Visit($this)
       $this.Append('{')
       $_.Item2.Visit($this)
@@ -394,22 +392,16 @@ class MinifyVisitor : AstVisitor2 {
 
   [AstVisitAction] VisitMemberExpression([MemberExpressionAst] $node) {
     ($node.Expression)?.Visit($this)
-    $this.Append($(if ($node.NullConditional) {
-          '?.' 
-        } else {
-          '.' 
-        }))
+    if ($node.NullConditional) {$this.Append('?')}
+    $this.Append($(if($node.Static){'::'}else{'.'}))
     $this.Append($node.Member)
     return [AstVisitAction]::SkipChildren
   }
 
   [AstVisitAction] VisitInvokeMemberExpression([InvokeMemberExpressionAst] $node) {
     ($node.Expression)?.Visit($this)
-    $this.Append($(if ($node.NullConditional) {
-          '?.' 
-        } else {
-          '.' 
-        }))
+    if ($node.NullConditional) {$this.Append('?')}
+    $this.Append($(if($node.Static){'::'}else{'.'}))
     $this.Append($node.Member)
     if ($node.GenericTypeArguments.Count -gt 0) {
       $this.Append('[')
@@ -473,7 +465,7 @@ class MinifyVisitor : AstVisitor2 {
 
   [AstVisitAction] VisitArrayExpression([ArrayExpressionAst]$node) {
     $this.Append('@(')
-    $node.SubExpression.Statements | ForEach-Object { $_.Visit($this) }
+    $node.SubExpression.Statements | % { $_.Visit($this) }
     $this.Append(')')
     return [AstVisitAction]::SkipChildren
   }
@@ -582,7 +574,7 @@ class MinifyVisitor : AstVisitor2 {
   }
 
   [AstVisitAction] VisitPropertyMember([PropertyMemberAst]$node) {
-    $node.Attributes | ForEach-Object { $_.Visit($this) }
+    $node.Attributes | % { $_.Visit($this) }
     if ($node.IsHidden) {
       $this.Append('hidden ')
     }
@@ -643,19 +635,24 @@ class MinifyVisitor : AstVisitor2 {
 
 function Remove-ScriptTrivia {
   param([Parameter(Position = 0, ValueFromPipeline)][string]$text)
-  Write-Debug "[SCRIPT-DEFINITION]`n```````n$text`n``````"
+  Write-Debug @"
+[SCRIPT-DEFINITION]
+``````
+$text
+``````
+"@
   $toks = $errs = $null
   [void][Parser]::ParseInput($text, [ref]$toks, [ref]$errs)
   if ($errs) {
-    $errs | ForEach-Object { Write-Error ($_) }
+    $errs | % { Write-Error ($_) }
     break
   }
   $cleanSb = [System.Text.StringBuilder]::new()
   $i = 0
   $prevKind = $null
   $toks | 
-  Where-Object { $_.Kind -in @([TokenKind]::Comment, [TokenKind]::LineContinuation) } |
-  ForEach-Object {
+  ? { $_.Kind -in @([TokenKind]::Comment, [TokenKind]::LineContinuation) } |
+  % {
     $subStr = if ($prevKind -eq 'LineContinuation') {
       $text.Substring($i, $_.Extent.StartOffset - $i).TrimStart()
     } else {
@@ -672,7 +669,7 @@ function Remove-ScriptTrivia {
   }
   $cleanSb.Append($rest) | Out-Null
   $lines = $cleanSb.ToString().Split([Environment]::NewLine, [StringSplitOptions]::RemoveEmptyEntries) | 
-  Where-Object { $_ -notmatch '^\s+$' }
+  ? { $_ -notmatch '^\s+$' }
   $lines -join [Environment]::NewLine
 }
 
