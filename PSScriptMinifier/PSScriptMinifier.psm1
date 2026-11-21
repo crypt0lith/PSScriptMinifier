@@ -343,9 +343,9 @@ class MinifyVisitor : AstVisitor2 {
       $this.RemoveTrailingSemi()
       $this.Append('}')
     }
-    if ($node.DefaultClause) {
-      $this.Append('default {')
-      ($node.DefaultClause)?.Visit($this)
+    if ($node.Default) {
+      $this.Append('default{')
+      $node.Default.Visit($this)
       $this.RemoveTrailingSemi()
       $this.Append('}')
     }
